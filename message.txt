@@ -1,0 +1,133 @@
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "DeliveryGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 220, 0, 100)
+frame.Position = UDim2.new(0, 20, 0, 20)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.BackgroundTransparency = 0.2
+frame.BorderSizePixel = 0
+frame.Parent = screenGui
+frame.Active = true
+frame.Draggable = true
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -20, 0, 30)
+title.Position = UDim2.new(0, 10, 0, 10)
+title.BackgroundTransparency = 1
+title.Text = "Sistema de Delivery"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 22
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = frame
+
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, -20, 0, 25)
+statusLabel.Position = UDim2.new(0, 10, 0, 45)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = "Estado: Detenido"
+statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+statusLabel.Font = Enum.Font.Gotham
+statusLabel.TextSize = 18
+statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+statusLabel.Parent = frame
+
+local startButton = Instance.new("TextButton")
+startButton.Size = UDim2.new(1, -20, 0, 30)
+startButton.Position = UDim2.new(0, 10, 1, -40)
+startButton.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+startButton.TextColor3 = Color3.new(1, 1, 1)
+startButton.Font = Enum.Font.GothamSemibold
+startButton.TextSize = 20
+startButton.Text = "Iniciar"
+startButton.AutoButtonColor = true
+startButton.Parent = frame
+
+local running = false
+
+local function activatePrompt(prompt)
+	if prompt then
+		if prompt.HoldDuration > 0 then
+			prompt.HoldDuration = 0
+		end
+		task.wait(0.1)
+		prompt:InputHoldBegin()
+		task.wait(0.1)
+		prompt:InputHoldEnd()
+	end
+end
+
+local function tweenToPosition(part, humanoidRootPart)
+	local distance = (part.Position - humanoidRootPart.Position).Magnitude
+	local speed = 500
+	
+	local time = distance / speed
+	time = math.clamp(time, 0.05, 0.5)
+	
+	local tweenInfo = TweenInfo.new(time, Enum.EasingStyle.Linear)
+	local tween = TweenService:Create(humanoidRootPart, tweenInfo, {CFrame = part.CFrame + Vector3.new(0, 5, 0)})
+	tween:Play()
+	tween.Completed:Wait()
+end
+
+local function deliveryLoop()
+	local character = player.Character or player.CharacterAdded:Wait()
+	local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+	local deliverySystem = workspace:WaitForChild("DelieverySystem")
+	local getPart = deliverySystem:WaitForChild("GetPart")
+	local receiveParts = deliverySystem:WaitForChild("ReceiveParts")
+
+	while running do
+		tweenToPosition(getPart, humanoidRootPart)
+		task.wait(0.05)
+
+		local getPrompt = getPart:FindFirstChildOfClass("ProximityPrompt")
+		activatePrompt(getPrompt)
+		task.wait(0.05)
+
+		local targetPart = nil
+		local activePrompt = nil
+		for _, obj in ipairs(receiveParts:GetDescendants()) do
+			if obj:IsA("ProximityPrompt") and obj.Enabled then
+				targetPart = obj.Parent
+				activePrompt = obj
+				break
+			end
+		end
+
+		if targetPart and activePrompt then
+			tweenToPosition(targetPart, humanoidRootPart)
+			task.wait(0.05)
+
+			activatePrompt(activePrompt)
+		else
+			warn("[DeliveryGui] No se encontró parte con prompt activo.")
+		end
+
+		task.wait(0.05)
+	end
+end
+
+startButton.MouseButton1Click:Connect(function()
+	running = not running
+
+	if running then
+		statusLabel.Text = "Estado: Activo"
+		statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+		startButton.Text = "Detener"
+		task.spawn(deliveryLoop)
+	else
+		statusLabel.Text = "Estado: Detenido"
+		statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+		startButton.Text = "Iniciar"
+	end
+end)
