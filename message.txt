@@ -1,133 +1,145 @@
+--// Hitbox Extender GUI con Slider
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Parent = game.CoreGui
 
-local player = Players.LocalPlayer
+-- Variables
+local hitboxEnabled = false
+local hitboxSize = 7
 
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "DeliveryGui"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = player:WaitForChild("PlayerGui")
+-- Frame principal
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 220, 0, 150)
+Frame.Position = UDim2.new(0.5, -110, 0.5, -75)
+Frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+Frame.BorderSizePixel = 0
+Frame.Active = true
+Frame.Draggable = true
+Frame.Parent = ScreenGui
 
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 220, 0, 100)
-frame.Position = UDim2.new(0, 20, 0, 20)
-frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-frame.BackgroundTransparency = 0.2
-frame.BorderSizePixel = 0
-frame.Parent = screenGui
-frame.Active = true
-frame.Draggable = true
+-- Botón de activar/desactivar
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Size = UDim2.new(1, -20, 0, 40)
+ToggleButton.Position = UDim2.new(0, 10, 0, 10)
+ToggleButton.Text = "Hitbox: OFF"
+ToggleButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.Font = Enum.Font.SourceSansBold
+ToggleButton.TextSize = 18
+ToggleButton.Parent = Frame
 
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -20, 0, 30)
-title.Position = UDim2.new(0, 10, 0, 10)
-title.BackgroundTransparency = 1
-title.Text = "Sistema de Delivery"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 22
-title.TextXAlignment = Enum.TextXAlignment.Left
-title.Parent = frame
+-- Label para slider
+local SizeLabel = Instance.new("TextLabel")
+SizeLabel.Size = UDim2.new(1, -20, 0, 20)
+SizeLabel.Position = UDim2.new(0, 10, 0, 60)
+SizeLabel.Text = "Tamaño: "..hitboxSize
+SizeLabel.BackgroundTransparency = 1
+SizeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+SizeLabel.Font = Enum.Font.SourceSans
+SizeLabel.TextSize = 16
+SizeLabel.Parent = Frame
 
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(1, -20, 0, 25)
-statusLabel.Position = UDim2.new(0, 10, 0, 45)
-statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "Estado: Detenido"
-statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-statusLabel.Font = Enum.Font.Gotham
-statusLabel.TextSize = 18
-statusLabel.TextXAlignment = Enum.TextXAlignment.Left
-statusLabel.Parent = frame
+-- Slider
+local SliderFrame = Instance.new("Frame")
+SliderFrame.Size = UDim2.new(1, -20, 0, 20)
+SliderFrame.Position = UDim2.new(0, 10, 0, 85)
+SliderFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+SliderFrame.BorderSizePixel = 0
+SliderFrame.Parent = Frame
 
-local startButton = Instance.new("TextButton")
-startButton.Size = UDim2.new(1, -20, 0, 30)
-startButton.Position = UDim2.new(0, 10, 1, -40)
-startButton.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
-startButton.TextColor3 = Color3.new(1, 1, 1)
-startButton.Font = Enum.Font.GothamSemibold
-startButton.TextSize = 20
-startButton.Text = "Iniciar"
-startButton.AutoButtonColor = true
-startButton.Parent = frame
+local SliderFill = Instance.new("Frame")
+SliderFill.Size = UDim2.new(hitboxSize/50, 0, 1, 0)
+SliderFill.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+SliderFill.BorderSizePixel = 0
+SliderFill.Parent = SliderFrame
 
-local running = false
+-- Función para agregar hitbox
+local function addFakeHitbox(char)
+    if char == LocalPlayer.Character then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
 
-local function activatePrompt(prompt)
-	if prompt then
-		if prompt.HoldDuration > 0 then
-			prompt.HoldDuration = 0
-		end
-		task.wait(0.1)
-		prompt:InputHoldBegin()
-		task.wait(0.1)
-		prompt:InputHoldEnd()
-	end
+    if char:FindFirstChild("BigHitbox") then
+        char.BigHitbox:Destroy()
+    end
+
+    if hitboxEnabled then
+        local part = Instance.new("Part")
+        part.Name = "BigHitbox"
+        part.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
+        part.Transparency = 0.7
+        part.Color = Color3.fromRGB(255, 0, 0)
+        part.Anchored = false
+        part.CanCollide = false
+        part.Massless = true
+        part.Parent = char
+
+        local weld = Instance.new("WeldConstraint")
+        weld.Part0 = hrp
+        weld.Part1 = part
+        weld.Parent = part
+    end
 end
 
-local function tweenToPosition(part, humanoidRootPart)
-	local distance = (part.Position - humanoidRootPart.Position).Magnitude
-	local speed = 500
-	
-	local time = distance / speed
-	time = math.clamp(time, 0.05, 0.5)
-	
-	local tweenInfo = TweenInfo.new(time, Enum.EasingStyle.Linear)
-	local tween = TweenService:Create(humanoidRootPart, tweenInfo, {CFrame = part.CFrame + Vector3.new(0, 5, 0)})
-	tween:Play()
-	tween.Completed:Wait()
+-- Aplicar a todos los jugadores actuales
+local function applyToAllPlayers()
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character then
+            addFakeHitbox(plr.Character)
+        end
+    end
 end
 
-local function deliveryLoop()
-	local character = player.Character or player.CharacterAdded:Wait()
-	local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-
-	local deliverySystem = workspace:WaitForChild("DelieverySystem")
-	local getPart = deliverySystem:WaitForChild("GetPart")
-	local receiveParts = deliverySystem:WaitForChild("ReceiveParts")
-
-	while running do
-		tweenToPosition(getPart, humanoidRootPart)
-		task.wait(0.05)
-
-		local getPrompt = getPart:FindFirstChildOfClass("ProximityPrompt")
-		activatePrompt(getPrompt)
-		task.wait(0.05)
-
-		local targetPart = nil
-		local activePrompt = nil
-		for _, obj in ipairs(receiveParts:GetDescendants()) do
-			if obj:IsA("ProximityPrompt") and obj.Enabled then
-				targetPart = obj.Parent
-				activePrompt = obj
-				break
-			end
-		end
-
-		if targetPart and activePrompt then
-			tweenToPosition(targetPart, humanoidRootPart)
-			task.wait(0.05)
-
-			activatePrompt(activePrompt)
-		else
-			warn("[DeliveryGui] No se encontró parte con prompt activo.")
-		end
-
-		task.wait(0.05)
-	end
-end
-
-startButton.MouseButton1Click:Connect(function()
-	running = not running
-
-	if running then
-		statusLabel.Text = "Estado: Activo"
-		statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-		startButton.Text = "Detener"
-		task.spawn(deliveryLoop)
-	else
-		statusLabel.Text = "Estado: Detenido"
-		statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-		startButton.Text = "Iniciar"
-	end
+-- Toggle botón
+ToggleButton.MouseButton1Click:Connect(function()
+    hitboxEnabled = not hitboxEnabled
+    ToggleButton.Text = "Hitbox: " .. (hitboxEnabled and "ON" or "OFF")
+    ToggleButton.BackgroundColor3 = hitboxEnabled and Color3.fromRGB(0, 170, 80) or Color3.fromRGB(70, 70, 70)
+    applyToAllPlayers()
 end)
+
+-- Slider para cambiar tamaño dinámicamente
+local dragging = false
+SliderFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+    end
+end)
+
+SliderFrame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+SliderFrame.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local pos = math.clamp(input.Position.X - SliderFrame.AbsolutePosition.X, 0, SliderFrame.AbsoluteSize.X)
+        hitboxSize = math.floor((pos / SliderFrame.AbsoluteSize.X) * 50)
+        hitboxSize = math.clamp(hitboxSize, 2, 50)
+        SliderFill.Size = UDim2.new(hitboxSize/50, 0, 1, 0)
+        SizeLabel.Text = "Tamaño: "..hitboxSize
+        if hitboxEnabled then
+            applyToAllPlayers()
+        end
+    end
+end)
+
+-- Respawn handling
+Players.PlayerAdded:Connect(function(plr)
+    plr.CharacterAdded:Connect(function(char)
+        task.wait(1)
+        addFakeHitbox(char)
+    end)
+end)
+
+-- También detectar si los jugadores actuales respawnean
+for _, plr in ipairs(Players:GetPlayers()) do
+    if plr.Character then
+        plr.CharacterAdded:Connect(function(char)
+            task.wait(1)
+            addFakeHitbox(char)
+        end)
+    end
+end
